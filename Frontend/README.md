@@ -1,3 +1,51 @@
+# React Chat App (Prototype)
+
+This is a simple React-based chat dashboard application with a sidebar, topbar, chat list, and chat window. The web app uses React Router for page navigation and basic CSS for layout and styling.  
+
+---
+
+## Dependencies
+
+This project uses the following dependencies:
+
+- **React**: `^18.0.0`
+- **React DOM**: `^18.0.0`
+- **React Router DOM**: `^6.0.0`
+- **Tailwind CSS** (optional for utility classes)
+- **Other dependencies**: None (currently plain CSS is used in `styles/theme.css`)
+
+---
+
+## Installation
+
+1. Clone the repository:
+
+```bash
+git clone P10-Signal-Hub/Signal-Hub
+cd Frontend
+```
+
+2. Install dependencies
+```bash
+npm install
+```
+
+3. Start development server
+```bash
+npm run dev
+```
+
+4. Build production
+```bash
+npm run build
+```
+
+5. Preview production build
+```bash
+npm run preview
+```
+
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
