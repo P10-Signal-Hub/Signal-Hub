@@ -1,27 +1,44 @@
 import gc
-import json
-import pprint
 import time
+import uuid
 from datetime import datetime
+from typing import Dict, Any
 
 import torch
+from fastapi import FastAPI
+from huggingface_hub import login
 from transformers import pipeline, AutoTokenizer
 
 from Event import Event, EventType
 
+login(token='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')
+
+app = FastAPI()
 model = 'google/gemma-3-4b-it'
 model_task = 'text-generation'
-current_date = datetime.now().strftime("%Y-%m-%d")
-current_time = datetime.now().strftime("%H:%M")
+
 messages = [
     {
         "role": "system",
         "content": [{"type": "text", "text": "You give answers only no filler information."}]
     }
 ]
+device = 0 if torch.cuda.is_available() else -1
+device_type = "GPU" if device == 0 else "CPU"
+tokenizer = AutoTokenizer.from_pretrained(model, use_fast=True)
+if getattr(tokenizer, "pad_token", None) is None and getattr(tokenizer, "eos_token", None) is not None:
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+# Sets what device to use for the pipeline. 0 = GPU, -1 = CPU
+# Creation of the pipeline. Task is the AI task to perform (Example: 'text-generation'). Model is the name of the model. dtype is the data type to use, this is set to auto to let the pipeline determine the best data type to use.
+pipe = pipeline(task=model_task,
+                model=model,
+                tokenizer=tokenizer,
+                device=device,
+                    dtype='auto')
 
-def find_event(pipe, conversation):
-    results = find_information(pipe, conversation,
+
+def find_event(conversation):
+    results = find_information(conversation,
                                  "In this conversation are they organising a meeting, milestone, or task? Give only one answer.")
     event_type = EventType.UNKNOWN
     if "meeting" in results[0].lower():
@@ -33,18 +50,20 @@ def find_event(pipe, conversation):
     
     return event_type, results[1]
 
-def create_meeting_event(pipe, conversation):
+def create_meeting_event(conversation):
     try:
-        meeting_name, meeting_name_time = find_information(pipe, conversation, "What is the name of the meeting?")
-        meeting_date, meeting_date_time = find_information(pipe, conversation,
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        current_time = datetime.now().strftime("%H:%M")
+        meeting_name, meeting_name_time = find_information(conversation, "What is the name of the meeting?")
+        meeting_date, meeting_date_time = find_information(conversation,
                                        f"What is the date of the meeting formatted in YYYY-MM-DD? Current date is {current_date}. If there is no date, just leave it empty")
-        meeting_time, meeting_time_time = find_information(pipe, conversation,
+        meeting_time, meeting_time_time = find_information(conversation,
                                        f"What time is the meeting formatted in HH-MM? Current time is {current_time}. If there is no date, just leave it empty")
-        meeting_location, meeting_location_time = find_information(pipe, conversation,
+        meeting_location, meeting_location_time = find_information(conversation,
                                            "Where is the meeting going to be held? If there is no location, just leave it empty")
-        meeting_description, meeting_description_time = find_information(pipe, conversation,
+        meeting_description, meeting_description_time = find_information(conversation,
                                               "What is the description of the meeting? If there is no description, just say 'No description available.'")
-        meeting_attendees, meeting_attendees_time = find_information(pipe, conversation,
+        meeting_attendees, meeting_attendees_time = find_information(conversation,
                                             "Who are the attendees? Give names separated by commas.")
         new_event = Event(EventType.MEETING, meeting_name, meeting_description,
                           {"date": meeting_date, "time": meeting_time, "location": meeting_location,
@@ -65,14 +84,16 @@ def create_meeting_event(pipe, conversation):
     except Exception as e:
         return {'error': e}
 
-def create_milestone_event(pipe, conversation):
+def create_milestone_event(conversation):
     try:
-        milestone_name, milestone_name_time = find_information(pipe, conversation, "What is the name of the milestone?")
-        milestone_description, milestone_description_time = find_information(pipe, conversation,
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        current_time = datetime.now().strftime("%H:%M")
+        milestone_name, milestone_name_time = find_information(conversation, "What is the name of the milestone?")
+        milestone_description, milestone_description_time = find_information(conversation,
                                                 "What is the description of the milestone? If there is no description, just say 'No description available.'")
-        milestone_due_date, milestone_due_date_time = find_information(pipe, conversation,
+        milestone_due_date, milestone_due_date_time = find_information(conversation,
                                              f"What is the due date of the milestone formatted in YYYY-MM-DD? Current date is {current_date}. If there is no date, just leave it empty")
-        milestone_attendees, milestone_attendees_time = find_information(pipe, conversation,
+        milestone_attendees, milestone_attendees_time = find_information(conversation,
                                               "Who are the attendees? Give names separated by commas.")
         new_event = Event(EventType.MILESTONE, milestone_name, milestone_description,
                           {"due_date": milestone_due_date, "attendees": milestone_attendees})
@@ -90,9 +111,11 @@ def create_milestone_event(pipe, conversation):
     except Exception as e:
         return {'error': e}
 
-def create_task_event(pipe, conversation):
+def create_task_event(conversation):
         try:
-            task, task_time = find_information(pipe, conversation,
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            current_time = datetime.now().strftime("%H:%M")
+            task, task_time = find_information(conversation,
                                    f"What is the name of the task or tasks? For each task put in to new line and start with 'Task: ' followed by the task name and then 'Description: ' followed by the task description. If there is no description, just say 'No description available.' Then Find the 'Due Date: ' of the task formatted in YYYY-MM-DD? Current date is {current_date}. If there is no date, just leave it empty. Finally 'Assignee: ' followed by the who is assigned to the task. If there is no assignee, just leave it empty.")
             # print(task, "\n" * 2, "-" * 50)
 
@@ -126,19 +149,22 @@ def create_task_event(pipe, conversation):
         except Exception as e:
             return {'error': e}
 
-def create_event(pipe, conversation):
-    event_type, event_type_elapsed_time = find_event(pipe, conversation)
+def create_event(payload):
+    conversation = payload['conversation']
+    request_id = payload['request_id']
+    print(f'Finding event type for {request_id}')
+    event_type, event_type_elapsed_time = find_event(conversation)
     model_statistics = {
             'event_type': event_type.name,
             'event_type_elapsed_time': event_type_elapsed_time
         }
     
     if event_type == EventType.MEETING:
-        results = create_meeting_event(pipe, conversation)
+        results = create_meeting_event(conversation)
     elif event_type == EventType.MILESTONE:
-        results = create_milestone_event(pipe, conversation)
+        results = create_milestone_event(conversation)
     elif event_type == EventType.TASK:
-        results = create_task_event(pipe, conversation)
+        results = create_task_event(conversation)
     else:
         return {
             'error' : 'No event created.',
@@ -156,7 +182,7 @@ def create_event(pipe, conversation):
             'event_type_statistics' : model_statistics
         }
 
-def find_information(pipe, conversation, information_extraction):
+def find_information(conversation, information_extraction):
     start_time = time.time()
     # Create new messages with the question appended to the conversation
     conversation_with_question = conversation + [{"type": "text", "text": information_extraction}]
@@ -166,44 +192,36 @@ def find_information(pipe, conversation, information_extraction):
     # Grab content from the output
     content = output[0]["generated_text"][-1]["content"]
     end_time = time.time()
-    # print(f"Time taken: {end_time - start_time} | Content: {content}")
+    print(f"Time taken: {end_time - start_time} | Content: {content}")
     result = content, end_time - start_time
     return result
 
-def input_handler(event):
-    payload = event.get("payload")
+@app.post("/agent/event/create")
+def input_handler(request: Dict[str, Any]):
+    payload = request.get("payload")
+    payload['request_id'] = uuid.uuid4()
+    print(request)
+
     if payload is None:
         return {'error': 'No payload provided.'}
     start_time = time.time()
-    device = 0 if torch.cuda.is_available() else -1
-    device_type = "GPU" if device == 0 else "CPU"
-    information = {'available_cuda': torch.cuda.is_available(), 'device' : device_type, 'model': model, 'task': model_task}
 
+    information = {'available_cuda': torch.cuda.is_available(), 'device' : device_type, 'model': model, 'task': model_task}
     #Force garbage collection and clear CUDA cache
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     #Create tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model, use_fast=True)
-    if getattr(tokenizer, "pad_token", None) is None and getattr(tokenizer, "eos_token", None) is not None:
-        tokenizer.pad_token_id = tokenizer.eos_token_id
-    # Sets what device to use for the pipeline. 0 = GPU, -1 = CPU
-    # Creation of the pipeline. Task is the AI task to perform (Example: 'text-generation'). Model is the name of the model. dtype is the data type to use, this is set to auto to let the pipeline determine the best data type to use.
-    pipe = pipeline(task=model_task,
-                    model=model,
-                    tokenizer=tokenizer,
-                    device=device,
-                    dtype='auto')
+
     # Find important context for the prompts
-    conversation = payload['conversation']
-    results = create_event(pipe, conversation)
+    results = create_event(payload)
     
     end_time = time.time()
     information['elapsed_time'] = end_time - start_time
     output = {'result' : results ,'model_information' : information}
     return output
 
-test_event = {
+'''test_event = {
     "payload": {
         "conversation": [
             {"type": "text",
@@ -229,4 +247,4 @@ test_event = {
     }
 }
 
-print(input_handler(test_event))
+print(input_handler(test_event))'''
