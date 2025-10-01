@@ -196,8 +196,9 @@ def find_information(conversation, information_extraction):
     result = content, end_time - start_time
     return result
 
-@app.post("/agent/event/create")
+@app.post("/agent/use")
 def input_handler(request: Dict[str, Any]):
+    method = request.get("method")
     payload = request.get("payload")
     payload['request_id'] = uuid.uuid4()
     print(request)

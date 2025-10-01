@@ -3,6 +3,7 @@ import requests
 url = "http://127.0.0.1:8000/agent/event/create"
 
 test_event = {
+    'method': 'event_creation',
     "payload": {
         "conversation": [
             {"type": "text",
