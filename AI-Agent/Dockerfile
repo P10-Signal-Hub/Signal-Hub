@@ -28,6 +28,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY Event.py /app/
 COPY EventAgent.py /app/
 COPY EventType.py /app/
+COPY AgentHandler.py /app/
+COPY Model.py /app/
 
 # Create cache directory
 RUN mkdir -p /app/.cache/huggingface
@@ -40,4 +42,4 @@ EXPOSE 8000
 #    CMD curl -f http://localhost:8000/docs || exit 1
 
 # Command to run the FastAPI application
-CMD ["python", "-m", "uvicorn", "EventAgent:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["python", "-m", "uvicorn", "AgentHandler:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

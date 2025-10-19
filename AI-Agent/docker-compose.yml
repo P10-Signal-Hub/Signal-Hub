@@ -3,6 +3,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - HUGGINGFACE_TOKEN=#PASTE HUGGINGFACE TOKEN HERE <-----
     deploy:
       resources:
         reservations:

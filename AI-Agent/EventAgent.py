@@ -56,10 +56,6 @@ messages = [
 ]
 
 
-
-#Testing method.
-
-
 class EventAgent:
     def __init__(self, model:Model):
         self.model = model
@@ -67,9 +63,12 @@ class EventAgent:
     # ---Handles the API request---
     def input_handler(self, payload):
         try:
-            print(f'Finding event type for {payload["request_id"]}')
             if payload is None:
                 return {'error': 'No payload provided.'}
+
+            print(f'Finding event for {payload["request_id"]}')
+            print(f'Conversation: {payload["conversation"]}')
+
             start_time = time.time()
 
             information = self.model.get_model_information()
@@ -80,7 +79,6 @@ class EventAgent:
 
             # Find important context for the prompts
             results = self.create_event(payload)
-
             end_time = time.time()
             information['elapsed_time'] = end_time - start_time
             output = {'result': results, 'model_information': information}
@@ -230,8 +228,6 @@ class EventAgent:
 
     def create_event(self, payload):
         conversation = payload['conversation']
-        request_id = payload['request_id']
-        print(f'Finding event type for {request_id}')
         event_type, event_type_elapsed_time = self.find_event(conversation)
         model_statistics = {
             'event_type': event_type.name,
@@ -256,6 +252,7 @@ class EventAgent:
             }
         model_statistics['event_type_statistics'] = results['times']
         result = results['result']
+        print(f"Event type: {event_type.name} | Event type time: {event_type_elapsed_time} | Result: {result}")
         return {
             'event': result,
             'event_type_statistics': model_statistics
