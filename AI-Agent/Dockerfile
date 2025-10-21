@@ -26,6 +26,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy application files
 COPY Event.py /app/
+COPY Agent.py /app/
 COPY EventAgent.py /app/
 COPY EventType.py /app/
 COPY AgentHandler.py /app/
