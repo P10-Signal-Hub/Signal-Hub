@@ -11,12 +11,14 @@ app = FastAPI()
 class AgentHandler:
     def __init__(self):
         self.model = Model()
+    #Event creation
     def call_event_agent(self, payload):
         agent = EventAgent.EventAgent(self.model)
+        #Test agent
         if 'test' in payload and payload['test'] == True:
             return agent.test_agent(payload)
         else:
-            return agent.input_handler(payload)
+            return agent.call_agent(payload)
 
 handler = AgentHandler()
 
@@ -29,10 +31,10 @@ def handle_event(request: Dict[str, Any]):
         return handler.call_event_agent(payload)
     return None
 
-'''test_event = {
+test_event = {
     'method': 'event_creation',
     "payload": {
         "test": True,
     }
 }
-handler.handle_event(test_event)'''
+handle_event(test_event)

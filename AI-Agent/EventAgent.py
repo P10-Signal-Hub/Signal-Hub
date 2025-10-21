@@ -1,4 +1,4 @@
-'''
+"""
 ---PAYLOAD---
 {
 	'method': 'event_creation',
@@ -9,8 +9,6 @@
 }
 
 ---RESPONSE---
-{
-	Response
 {
 	'result':
 	{
@@ -38,7 +36,7 @@
 		'elapsed_time': float
 	}
 }
-'''
+"""
 import gc
 import time
 from datetime import datetime
@@ -47,7 +45,7 @@ import torch
 
 from Event import Event, EventType
 from Model import Model
-
+from Agent import Agent
 messages = [
     {
         "role": "system",
@@ -56,35 +54,12 @@ messages = [
 ]
 
 
-class EventAgent:
+class EventAgent(Agent):
     def __init__(self, model:Model):
-        self.model = model
+        super().__init__(model)
 
-    # ---Handles the API request---
-    def input_handler(self, payload):
-        try:
-            if payload is None:
-                return {'error': 'No payload provided.'}
-
-            print(f'Finding event for {payload["request_id"]}')
-            print(f'Conversation: {payload["conversation"]}')
-
-            start_time = time.time()
-
-            information = self.model.get_model_information()
-            # Force garbage collection and clear CUDA cache
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-            # Find important context for the prompts
-            results = self.create_event(payload)
-            end_time = time.time()
-            information['elapsed_time'] = end_time - start_time
-            output = {'result': results, 'model_information': information}
-            return output
-        except Exception as e:
-            return {'error': str(e)}
+    def call_agent(self, payload):
+        return self.input_handler(payload, self.create_event)
 
     def find_information(self, conversation, information_extraction):
         start_time = time.time()
@@ -324,4 +299,4 @@ class EventAgent:
         ]
         for conversation_index in range(len(conversations)):
             payload["conversation"] = conversations[conversation_index]
-            print(self.input_handler(payload))
+            print(self.call_agent(payload))
