@@ -54,6 +54,6 @@ POST /agent/use
     "device_type": "GPU"
   }
 }
-
+```
 ---
 Further documentation regarding technical points, deployment notes, see documentation document.
